@@ -1,0 +1,59 @@
+Variable,Value,Count
+State,Alabama,10
+State,Alaska,10
+State,Arizona,10
+State,Arkansas,10
+State,California,10
+State,Colorado,10
+State,Connecticut,10
+State,Delaware,10
+State,District of Columbia,10
+State,Florida,10
+State,Georgia,10
+State,Hawaii,10
+State,Idaho,10
+State,Illinois,10
+State,Indiana,10
+State,Iowa,10
+State,Kansas,10
+State,Kentucky,10
+State,Louisiana,10
+State,Maine,10
+State,Maryland,10
+State,Massachusetts,10
+State,Michigan,10
+State,Minnesota,10
+State,Mississippi,10
+State,Missouri,10
+State,Montana,10
+State,Nebraska,10
+State,Nevada,10
+State,New Hampshire,10
+State,New Jersey,10
+State,New Mexico,10
+State,New York,10
+State,North Carolina,10
+State,North Dakota,10
+State,Ohio,10
+State,Oklahoma,10
+State,Oregon,10
+State,Pennsylvania,10
+State,Rhode Island,10
+State,South Carolina,10
+State,South Dakota,10
+State,Tennessee,10
+State,Texas,10
+State,Utah,10
+State,Vermont,10
+State,Virginia,10
+State,Washington,10
+State,West Virginia,10
+State,Wisconsin,10
+State,Wyoming,10
+Age,18-64,255
+Age,65+,255
+Language,English only,102
+Language,Spanish,102
+Language,Other Indo-European,102
+Language,Asian and Pacific Island,102
+Language,Other languages,102

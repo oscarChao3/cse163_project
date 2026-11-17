@@ -1,0 +1,56 @@
+Variable,Value,Count
+State,Alabama,4
+State,Alaska,4
+State,Arizona,4
+State,Arkansas,4
+State,California,4
+State,Colorado,4
+State,Connecticut,4
+State,Delaware,4
+State,District of Columbia,4
+State,Florida,4
+State,Georgia,4
+State,Hawaii,4
+State,Idaho,4
+State,Illinois,4
+State,Indiana,4
+State,Iowa,4
+State,Kansas,4
+State,Kentucky,4
+State,Louisiana,4
+State,Maine,4
+State,Maryland,4
+State,Massachusetts,4
+State,Michigan,4
+State,Minnesota,4
+State,Mississippi,4
+State,Missouri,4
+State,Montana,4
+State,Nebraska,4
+State,Nevada,4
+State,New Hampshire,4
+State,New Jersey,4
+State,New Mexico,4
+State,New York,4
+State,North Carolina,4
+State,North Dakota,4
+State,Ohio,4
+State,Oklahoma,4
+State,Oregon,4
+State,Pennsylvania,4
+State,Rhode Island,4
+State,South Carolina,4
+State,South Dakota,4
+State,Tennessee,4
+State,Texas,4
+State,Utah,4
+State,Vermont,4
+State,Virginia,4
+State,Washington,4
+State,West Virginia,4
+State,Wisconsin,4
+State,Wyoming,4
+Sex,Male,102
+Sex,Female,102
+Age,35-64,102
+Age,65+,102

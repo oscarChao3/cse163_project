@@ -188,6 +188,31 @@ def language_lep(data):
     return pd.concat(results, ignore_index=True)
 
 
+def overall_lep_rates(data):
+    """
+    Takes prepared C16001 estimates and returns overall LEP counts
+    and percentages for each state among people ages 5 and older.
+    """
+    lep_columns = [
+        f"C16001_{number:03d}E"
+        for number in range(5, 39, 3)
+    ]
+
+    lep_count = data[lep_columns].sum(
+        axis=1, min_count=len(lep_columns)
+    )
+    total = data["C16001_001E"]
+
+    return pd.DataFrame({
+        "State": data["State"],
+        "LEP_Count": lep_count,
+        "Language_Population": total,
+        "LEP_Percentage": (
+            lep_count / total.where(total > 0) * 100
+        ),
+    })
+
+
 def plot_lep_ranges(ranges):
     """
     Takes LEP ranges indexed by age and language and saves an
@@ -346,6 +371,31 @@ def insurance_rates(data):
     return pd.concat(results, ignore_index=True)
 
 
+def overall_insurance_rates(data):
+    """
+    Takes prepared B27010 estimates and returns insurance coverage
+    percentages for each state across all ages.
+    """
+    uninsured_columns = [
+        "B27010_017E",
+        "B27010_033E",
+        "B27010_050E",
+        "B27010_066E",
+    ]
+
+    uninsured = data[uninsured_columns].sum(axis=1, min_count=4)
+    total = data["B27010_001E"]
+
+    return pd.DataFrame({
+        "State": data["State"],
+        "Insurance_Population": total,
+        "Uninsured_Count": uninsured,
+        "Coverage_Percentage": (
+            (1 - uninsured / total.where(total > 0)) * 100
+        ),
+    })
+
+
 def merge_hearing_insurance(hearing, insurance):
     """
     Takes hearing rates by state, sex, and age, and insurance rates
@@ -357,6 +407,19 @@ def merge_hearing_insurance(hearing, insurance):
         on=["State", "Age"],
         how="inner",
         validate="many_to_one",
+    )
+
+
+def merge_language_insurance(lep, insurance):
+    """
+    Takes overall LEP and insurance data and returns their inner join
+    on state. Requires one record per state in each input.
+    """
+    return lep.merge(
+        insurance,
+        on="State",
+        how="inner",
+        validate="one_to_one",
     )
 
 
@@ -401,6 +464,75 @@ def plot_hearing_insurance(data):
         filename = age.replace("+", "plus")
         fig.savefig(f"hearing_insurance_{filename}.png", dpi=300)
         plt.close(fig)
+
+
+def plot_language_insurance(data):
+    """
+    Takes joined language and insurance data and saves a scatter
+    plot of state LEP percentages against insurance coverage.
+    """
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    ax.scatter(
+        data["LEP_Percentage"],
+        data["Coverage_Percentage"],
+        alpha=0.75,
+    )
+
+    ax.set_title("Language Barriers and Insurance Coverage Across States")
+    ax.set_xlabel("Limited English proficiency, ages 5+ (%)")
+    ax.set_ylabel("Insurance coverage, all ages (%)")
+
+    fig.tight_layout()
+    fig.savefig("language_insurance_scatter.png", dpi=300)
+    plt.close(fig)
+
+
+def plot_language_insurance_distributions(data):
+    """
+    Takes joined language and insurance data and saves histograms
+    showing the distribution of each percentage across states.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+
+    axes[0].hist(
+        data["LEP_Percentage"], bins=10, edgecolor="white"
+    )
+    axes[0].set_title("LEP Rates, Ages 5+")
+    axes[0].set_xlabel("Limited English proficiency (%)")
+    axes[0].set_ylabel("Number of states and D.C.")
+
+    axes[1].hist(
+        data["Coverage_Percentage"],
+        bins=10,
+        edgecolor="white",
+        color="orange",
+    )
+    axes[1].set_title("Insurance Coverage, All Ages")
+    axes[1].set_xlabel("Insurance coverage (%)")
+    axes[1].set_ylabel("Number of states and D.C.")
+
+    fig.suptitle("Distribution of State LEP and Insurance Rates")
+    fig.tight_layout()
+    fig.savefig("language_insurance_distributions.png", dpi=300)
+    plt.close(fig)
+
+
+def categorical_counts(data, columns):
+    """
+    Takes a DataFrame and a list of categorical column names.
+    Returns each column's unique values and their counts,
+    including missing values if present.
+    """
+    results = []
+
+    for column in columns:
+        counts = data[column].value_counts(dropna=False)
+        result = counts.rename_axis("Value").reset_index(name="Count")
+        result.insert(0, "Variable", column)
+        results.append(result)
+
+    return pd.concat(results, ignore_index=True)
 
 
 def main():
@@ -518,6 +650,74 @@ def main():
     print(hearing_insurance_summary.to_string())
 
     plot_hearing_insurance(hearing_insurance)
+
+    overall_lep = overall_lep_rates(datasets["C16001"])
+    overall_lep.to_csv("data/overall_lep_rates.csv", index=False)
+
+    print("\nOverall LEP data:", overall_lep.shape)
+    print(overall_lep.head())
+    print("\nMissing values:")
+    print(overall_lep.isna().sum())
+    print("\nOverall LEP summary:")
+    print(overall_lep["LEP_Percentage"].describe())
+
+    overall_insurance = overall_insurance_rates(datasets["B27010"])
+    language_insurance = merge_language_insurance(
+        overall_lep, overall_insurance
+    )
+
+    assert len(language_insurance) == 51
+
+    language_insurance.to_csv(
+        "data/language_insurance.csv", index=False
+    )
+
+    print("\nJoined language and insurance data:")
+    print("Rows and columns:", language_insurance.shape)
+    print(language_insurance.head().to_string(index=False))
+
+    print("\nMissing values:")
+    print(language_insurance.isna().sum())
+
+    summary = language_insurance[
+        ["LEP_Percentage", "Coverage_Percentage"]
+    ].describe()
+    summary.to_csv("data/language_insurance_summary.csv")
+
+    print("\nLanguage and insurance summary:")
+    print(summary)
+
+    plot_language_insurance(language_insurance)
+    plot_language_insurance_distributions(language_insurance)
+
+    categorical_tables = {
+        "composition": (
+            composition, ["State", "Age", "Language"]
+        ),
+        "lep": (
+            lep, ["State", "Age", "Language"]
+        ),
+        "hearing_insurance": (
+            hearing_insurance, ["State", "Sex", "Age"]
+        ),
+        "language_insurance": (
+            language_insurance, ["State"]
+        ),
+    }
+
+    for name, (data, columns) in categorical_tables.items():
+        counts = categorical_counts(data, columns)
+        counts.to_csv(
+            f"data/{name}_category_counts.csv", index=False
+        )
+
+        print(f"\n{name}: category counts")
+        print(
+            counts[counts["Variable"] != "State"].to_string(
+                index=False
+            )
+        )
+        print("Number of unique states:", data["State"].nunique())
 
 
 if __name__ == "__main__":
