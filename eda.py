@@ -167,7 +167,6 @@ def language_lep(data):
         for language, number in zip(languages, group_numbers):
             total = data["B16004_" + str(number).zfill(3) + "E"]
 
-            # The three LEP categories follow the "very well" category.
             lep_columns = [
                 "B16004_" + str(number + offset).zfill(3) + "E"
                 for offset in [2, 3, 4]
@@ -554,7 +553,7 @@ def main():
     hearing_summary = summarize_hearing_insurance(hearing_insurance)
     print("\nJoined hearing and insurance data:", hearing_insurance.shape)
     print("Missing values:", hearing_insurance.isna().sum().sum())
-    print(hearing_summary)
+    print(hearing_summary.to_string())
     hearing_summary.to_csv("data/hearing_insurance_summary.csv")
 
     hearing_counts = categorical_counts(
