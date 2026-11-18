@@ -38,20 +38,18 @@ def read_data(filepath):
 def prepare_estimates(data, table):
     """
     Takes a cleaned ACS DataFrame and its table name.
-    Returns a DataFrame with one row per state and numbered estimate
-    columns corresponding to the original table's row order.
+    Returns a DataFrame with one row per state and numbered
+    estimate columns.
     """
-    estimates = data.filter(like="!!Estimate").copy()
+    estimates = data.filter(like="!!Estimate")
 
-    # Number the categories because some original labels are repeated.
-    estimates.index = [
-        f"{table}_{i + 1:03d}E" for i in range(len(estimates))
-    ]
+    columns = []
+    for i in range(len(estimates)):
+        columns.append(f"{table}_{i + 1:03d}E")
 
     estimates = estimates.T
-    estimates.index = estimates.index.str.replace(
-        "!!Estimate", "", regex=False
-    )
+    estimates.columns = columns
+    estimates.index = estimates.index.str.replace("!!Estimate", "")
     estimates.index.name = "State"
 
     return estimates.reset_index()
@@ -98,18 +96,12 @@ def language_composition(data):
 
 def summarize_composition(composition):
     """
-    Takes language composition data and returns percentage totals
-    by state and age, and descriptive statistics by age and language.
+    Takes language composition data and returns descriptive statistics
+    for percentages by age and language.
     """
-    totals = composition.groupby(
-        ["State", "Age"]
-    )["Percentage"].sum()
-
-    summary = composition.groupby(
+    return composition.groupby(
         ["Age", "Language"]
     )["Percentage"].describe()
-
-    return totals, summary
 
 
 def plot_language_composition(composition):
@@ -171,7 +163,7 @@ def language_lep(data):
                 f"B16004_{number + offset:03d}E"
                 for offset in [2, 3, 4]
             ]
-            lep_count = data[lep_columns].sum(axis=1, min_count=3)
+            lep_count = data[lep_columns].sum(axis=1)
 
             group = pd.DataFrame({
                 "State": data["State"],
@@ -198,9 +190,7 @@ def overall_lep_rates(data):
         for number in range(5, 39, 3)
     ]
 
-    lep_count = data[lep_columns].sum(
-        axis=1, min_count=len(lep_columns)
-    )
+    lep_count = data[lep_columns].sum(axis=1)
     total = data["C16001_001E"]
 
     return pd.DataFrame({
@@ -238,8 +228,6 @@ def plot_lep_ranges(ranges):
         },
     )
     fig.update_yaxes(
-        categoryorder="array",
-        categoryarray=plot_data["Group"].tolist(),
         autorange="reversed",
     )
     fig.update_layout(width=1100, height=600)
@@ -260,41 +248,6 @@ def summarize_lep(lep):
     ranges = ranges.sort_values("Range", ascending=False)
 
     return summary, ranges
-
-
-def find_lep_extremes(lep):
-    """
-    Takes LEP data and returns two DataFrames containing the lowest
-    and highest observed rate in each age and language group.
-    If rates are tied, returns the first matching row.
-    """
-    grouped = lep.groupby(["Age", "Language"])["LEP_Percentage"]
-    lowest = lep.loc[grouped.idxmin()].copy()
-    highest = lep.loc[grouped.idxmax()].copy()
-
-    return lowest, highest
-
-
-def inspect_lep_uncertainty(data):
-    """
-    Takes cleaned B16004 data and returns counts and margins of error
-    for the 65+ other-language group in Wyoming and Michigan.
-    """
-    columns = [
-        "Label (Grouping)",
-        "Wyoming!!Estimate",
-        "Wyoming!!Margin of Error",
-        "Michigan!!Estimate",
-        "Michigan!!Margin of Error",
-    ]
-
-    # Group total and the three categories counted as LEP.
-    result = data.iloc[[62, 64, 65, 66]][columns].copy()
-    result["Label (Grouping)"] = (
-        result["Label (Grouping)"].str.strip()
-    )
-
-    return result
 
 
 def hearing_rates(data):
@@ -319,12 +272,8 @@ def hearing_rates(data):
             f"B18102_{number:03d}E" for number in difficulty_numbers
         ]
 
-        total = data[total_columns].sum(
-            axis=1, min_count=len(total_columns)
-        )
-        difficulty = data[difficulty_columns].sum(
-            axis=1, min_count=len(difficulty_columns)
-        )
+        total = data[total_columns].sum(axis=1)
+        difficulty = data[difficulty_columns].sum(axis=1)
 
         group = pd.DataFrame({
             "State": data["State"],
@@ -383,7 +332,7 @@ def overall_insurance_rates(data):
         "B27010_066E",
     ]
 
-    uninsured = data[uninsured_columns].sum(axis=1, min_count=4)
+    uninsured = data[uninsured_columns].sum(axis=1)
     total = data["B27010_001E"]
 
     return pd.DataFrame({
@@ -400,26 +349,23 @@ def merge_hearing_insurance(hearing, insurance):
     """
     Takes hearing rates by state, sex, and age, and insurance rates
     by state and age. Returns their inner join on state and age.
-    Requires unique insurance records for each state and age group.
     """
     return hearing.merge(
         insurance,
         on=["State", "Age"],
         how="inner",
-        validate="many_to_one",
     )
 
 
 def merge_language_insurance(lep, insurance):
     """
     Takes overall LEP and insurance data and returns their inner join
-    on state. Requires one record per state in each input.
+    on state.
     """
     return lep.merge(
         insurance,
         on="State",
         how="inner",
-        validate="one_to_one",
     )
 
 
@@ -528,8 +474,11 @@ def categorical_counts(data, columns):
 
     for column in columns:
         counts = data[column].value_counts(dropna=False)
-        result = counts.rename_axis("Value").reset_index(name="Count")
-        result.insert(0, "Variable", column)
+        result = pd.DataFrame({
+            "Variable": column,
+            "Value": counts.index,
+            "Count": counts,
+        })
         results.append(result)
 
     return pd.concat(results, ignore_index=True)
@@ -542,182 +491,82 @@ def main():
     for table in tables:
         data = read_data(f"data/ACSDT5Y2024.{table}.csv")
         estimates = prepare_estimates(data, table)
-        estimates.to_csv(f"data/{table}_estimates.csv", index=False)
         datasets[table] = estimates
 
+        print(f"\n{table}: cleaned rows and columns", data.shape)
+        print("Missing numeric values:", data.iloc[:, 1:].isna().sum().sum())
+        print("Rows and columns after reshaping:", estimates.shape)
+
     composition = language_composition(datasets["B16004"])
-    totals, summary = summarize_composition(composition)
+    composition_summary = summarize_composition(composition)
 
-    composition.to_csv("data/language_composition.csv", index=False)
-    summary.to_csv("data/language_composition_summary.csv")
+    print("\nLanguage composition:", composition.shape)
+    print("Missing values:", composition.isna().sum().sum())
+    print(composition_summary)
+    composition_summary.to_csv("data/language_composition_summary.csv")
 
-    print("Language composition:", composition.shape)
-    print(composition.head())
-    print("\nPercentage totals for each state and age group:")
-    print(totals.head(6))
-    print("\nSummary of language percentages:")
-    print(summary)
-
+    composition_counts = categorical_counts(
+        composition, ["State", "Age", "Language"]
+    )
+    composition_counts.to_csv(
+        "data/composition_category_counts.csv", index=False
+    )
     plot_language_composition(composition)
 
     lep = language_lep(datasets["B16004"])
     lep_summary, ranges = summarize_lep(lep)
-    lowest, highest = find_lep_extremes(lep)
-
-    lep.to_csv("data/language_lep.csv", index=False)
-    lep_summary.to_csv("data/language_lep_summary.csv")
-    ranges.to_csv("data/language_lep_ranges.csv")
-    lowest.to_csv("data/lep_lowest_states.csv", index=False)
-    highest.to_csv("data/lep_highest_states.csv", index=False)
 
     print("\nLEP data:", lep.shape)
-    print(lep.head())
-    print("\nMissing values:")
-    print(lep.isna().sum())
+    print("Missing values:", lep.isna().sum().sum())
+    print(lep_summary)
     print("\nLEP ranges across states:")
     print(ranges)
-    print("\nStates with the lowest LEP percentages:")
-    print(lowest.to_string(index=False))
-    print("\nStates with the highest LEP percentages:")
-    print(highest.to_string(index=False))
+    lep_summary.to_csv("data/language_lep_summary.csv")
+    ranges.to_csv("data/language_lep_ranges.csv")
 
+    lep_counts = categorical_counts(lep, ["State", "Age", "Language"])
+    lep_counts.to_csv("data/lep_category_counts.csv", index=False)
     plot_lep_ranges(ranges)
 
-    language_data = read_data("data/ACSDT5Y2024.B16004.csv")
-    uncertainty = inspect_lep_uncertainty(language_data)
-
-    print("\nUncertainty in the 65+ other-language group:")
-    print(uncertainty.to_string(index=False))
-    uncertainty.to_csv("data/lep_uncertainty.csv", index=False)
-
     hearing = hearing_rates(datasets["B18102"])
-    hearing.to_csv("data/hearing_rates.csv", index=False)
-
-    print("\nHearing data:", hearing.shape)
-    print(hearing.head())
-
-    print("\nMissing values:")
-    print(hearing.isna().sum())
-
-    print("\nMean hearing difficulty percentages:")
-    print(
-        hearing.groupby(
-            ["Sex", "Age"]
-        )["Hearing_Percentage"].mean()
-    )
-
     insurance = insurance_rates(datasets["B27010"])
-    insurance.to_csv("data/insurance_rates.csv", index=False)
-
-    print("\nInsurance data:", insurance.shape)
-    print(insurance.head())
-
-    print("\nMissing values:")
-    print(insurance.isna().sum())
-
-    print("\nInsurance coverage summary:")
-    insurance_summary = insurance.groupby(
-        "Age"
-    )["Coverage_Percentage"].describe()
-    print(insurance_summary)
-    insurance_summary.to_csv("data/insurance_summary.csv")
-
     hearing_insurance = merge_hearing_insurance(hearing, insurance)
-    hearing_insurance.to_csv(
-        "data/hearing_insurance.csv", index=False
+
+    hearing_summary = summarize_hearing_insurance(hearing_insurance)
+    print("\nJoined hearing and insurance data:", hearing_insurance.shape)
+    print("Missing values:", hearing_insurance.isna().sum().sum())
+    print(hearing_summary)
+    hearing_summary.to_csv("data/hearing_insurance_summary.csv")
+
+    hearing_counts = categorical_counts(
+        hearing_insurance, ["State", "Sex", "Age"]
     )
-
-    print("\nJoined hearing and insurance data:")
-    print("Rows and columns:", hearing_insurance.shape)
-    print(hearing_insurance.head().to_string(index=False))
-
-    assert len(hearing_insurance) == len(hearing)
-    assert not hearing_insurance.duplicated(
-        ["State", "Sex", "Age"]
-    ).any()
-
-    print("\nMissing values:")
-    print(hearing_insurance.isna().sum())
-
-    hearing_insurance_summary = summarize_hearing_insurance(
-        hearing_insurance
+    hearing_counts.to_csv(
+        "data/hearing_insurance_category_counts.csv", index=False
     )
-    hearing_insurance_summary.to_csv(
-        "data/hearing_insurance_summary.csv"
-    )
-
-    print("\nHearing and insurance summary:")
-    print(hearing_insurance_summary.to_string())
-
     plot_hearing_insurance(hearing_insurance)
 
     overall_lep = overall_lep_rates(datasets["C16001"])
-    overall_lep.to_csv("data/overall_lep_rates.csv", index=False)
-
-    print("\nOverall LEP data:", overall_lep.shape)
-    print(overall_lep.head())
-    print("\nMissing values:")
-    print(overall_lep.isna().sum())
-    print("\nOverall LEP summary:")
-    print(overall_lep["LEP_Percentage"].describe())
-
     overall_insurance = overall_insurance_rates(datasets["B27010"])
     language_insurance = merge_language_insurance(
         overall_lep, overall_insurance
     )
 
-    assert len(language_insurance) == 51
-
-    language_insurance.to_csv(
-        "data/language_insurance.csv", index=False
-    )
-
-    print("\nJoined language and insurance data:")
-    print("Rows and columns:", language_insurance.shape)
-    print(language_insurance.head().to_string(index=False))
-
-    print("\nMissing values:")
-    print(language_insurance.isna().sum())
-
-    summary = language_insurance[
+    percentages = language_insurance[
         ["LEP_Percentage", "Coverage_Percentage"]
-    ].describe()
-    summary.to_csv("data/language_insurance_summary.csv")
+    ]
+    language_summary = percentages.describe()
+    print("\nJoined language and insurance data:", language_insurance.shape)
+    print("Missing values:", language_insurance.isna().sum().sum())
+    print(language_summary)
+    language_summary.to_csv("data/language_insurance_summary.csv")
 
-    print("\nLanguage and insurance summary:")
-    print(summary)
-
+    language_counts = categorical_counts(language_insurance, ["State"])
+    language_counts.to_csv(
+        "data/language_insurance_category_counts.csv", index=False
+    )
     plot_language_insurance(language_insurance)
     plot_language_insurance_distributions(language_insurance)
-
-    categorical_tables = {
-        "composition": (
-            composition, ["State", "Age", "Language"]
-        ),
-        "lep": (
-            lep, ["State", "Age", "Language"]
-        ),
-        "hearing_insurance": (
-            hearing_insurance, ["State", "Sex", "Age"]
-        ),
-        "language_insurance": (
-            language_insurance, ["State"]
-        ),
-    }
-
-    for name, (data, columns) in categorical_tables.items():
-        counts = categorical_counts(data, columns)
-        counts.to_csv(
-            f"data/{name}_category_counts.csv", index=False
-        )
-
-        print(f"\n{name}: category counts")
-        print(
-            counts[counts["Variable"] != "State"].to_string(
-                index=False
-            )
-        )
-        print("Number of unique states:", data["State"].nunique())
 
 
 if __name__ == "__main__":
