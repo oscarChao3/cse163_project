@@ -92,7 +92,7 @@ def test_language_percentages():
         0,
         index=[0],
         columns=[
-            f"B16004_{number:03d}E"
+            "B16004_" + str(number).zfill(3) + "E"
             for number in range(1, 68)
         ],
     )
@@ -145,7 +145,7 @@ def test_actual_data():
     datasets = {}
 
     for table in ["B16004", "B18102", "B27010", "C16001"]:
-        cleaned = eda.read_data(f"data/ACSDT5Y2024.{table}.csv")
+        cleaned = eda.read_data("data/ACSDT5Y2024." + table + ".csv")
         data = eda.prepare_estimates(cleaned, table)
         datasets[table] = data
 

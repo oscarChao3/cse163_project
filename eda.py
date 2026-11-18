@@ -46,7 +46,7 @@ def prepare_estimates(data, table):
 
     columns = []
     for i in range(len(estimates)):
-        columns.append(f"{table}_{i + 1:03d}E")
+        columns.append(table + "_" + str(i + 1).zfill(3) + "E")
 
     estimates = estimates.T
     estimates.columns = columns
@@ -77,10 +77,10 @@ def language_composition(data):
     results = []
 
     for age, (total_number, language_numbers) in age_groups.items():
-        total = data[f"B16004_{total_number:03d}E"]
+        total = data["B16004_" + str(total_number).zfill(3) + "E"]
 
         for language, number in zip(languages, language_numbers):
-            count = data[f"B16004_{number:03d}E"]
+            count = data["B16004_" + str(number).zfill(3) + "E"]
 
             group = pd.DataFrame({
                 "State": data["State"],
@@ -165,11 +165,11 @@ def language_lep(data):
 
     for age, group_numbers in age_groups.items():
         for language, number in zip(languages, group_numbers):
-            total = data[f"B16004_{number:03d}E"]
+            total = data["B16004_" + str(number).zfill(3) + "E"]
 
             # The three LEP categories follow the "very well" category.
             lep_columns = [
-                f"B16004_{number + offset:03d}E"
+                "B16004_" + str(number + offset).zfill(3) + "E"
                 for offset in [2, 3, 4]
             ]
             lep_count = data[lep_columns].sum(axis=1)
@@ -195,7 +195,7 @@ def overall_lep_rates(data):
     and percentages for each state among people ages 5 and older.
     """
     lep_columns = [
-        f"C16001_{number:03d}E"
+        "C16001_" + str(number).zfill(3) + "E"
         for number in range(5, 39, 3)
     ]
 
@@ -275,10 +275,11 @@ def hearing_rates(data):
 
     for (sex, age), (total_numbers, difficulty_numbers) in groups.items():
         total_columns = [
-            f"B18102_{number:03d}E" for number in total_numbers
+            "B18102_" + str(number).zfill(3) + "E" for number in total_numbers
         ]
         difficulty_columns = [
-            f"B18102_{number:03d}E" for number in difficulty_numbers
+            "B18102_" + str(number).zfill(3) + "E"
+            for number in difficulty_numbers
         ]
 
         total = data[total_columns].sum(axis=1)
@@ -312,8 +313,8 @@ def insurance_rates(data):
     results = []
 
     for age, (total_number, uninsured_number) in groups.items():
-        total = data[f"B27010_{total_number:03d}E"]
-        uninsured = data[f"B27010_{uninsured_number:03d}E"]
+        total = data["B27010_" + str(total_number).zfill(3) + "E"]
+        uninsured = data["B27010_" + str(uninsured_number).zfill(3) + "E"]
 
         group = pd.DataFrame({
             "State": data["State"],
@@ -416,12 +417,12 @@ def plot_hearing_insurance(data):
         )
         g.legend.set_title("Sex of hearing measure")
         g.figure.suptitle(
-            f"Hearing Difficulty and Insurance Coverage: Ages {age}"
+            "Hearing Difficulty and Insurance Coverage: Ages " + age
         )
         g.figure.tight_layout()
 
         filename = age.replace("+", "plus")
-        g.savefig(f"hearing_insurance_{filename}.png", dpi=300)
+        g.savefig("hearing_insurance_" + filename + ".png", dpi=300)
         plt.close(g.figure)
 
 
@@ -507,11 +508,11 @@ def main():
     datasets = {}
 
     for table in tables:
-        data = read_data(f"data/ACSDT5Y2024.{table}.csv")
+        data = read_data("data/ACSDT5Y2024." + table + ".csv")
         estimates = prepare_estimates(data, table)
         datasets[table] = estimates
 
-        print(f"\n{table}: cleaned rows and columns", data.shape)
+        print("\n" + table + ": cleaned rows and columns", data.shape)
         print("Missing numeric values:", data.iloc[:, 1:].isna().sum().sum())
         print("Rows and columns after reshaping:", estimates.shape)
 
