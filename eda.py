@@ -8,6 +8,7 @@ and health insurance coverage across states.
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import plotly.express as px
 
 
@@ -110,10 +111,6 @@ def plot_language_composition(composition):
     comparing mean state percentages between the two age groups.
     Each state and Washington, D.C. receives equal weight.
     """
-    means = composition.groupby(
-        ["Language", "Age"]
-    )["Percentage"].mean().unstack()
-
     languages = [
         "English only",
         "Spanish",
@@ -121,18 +118,30 @@ def plot_language_composition(composition):
         "Asian and Pacific Island",
         "Other languages",
     ]
-    means = means.loc[languages, ["18-64", "65+"]]
 
-    ax = means.plot.bar(figsize=(10, 6))
-    ax.set_title("Language Composition by Age: Mean State Percentages")
-    ax.set_xlabel("Language spoken at home")
-    ax.set_ylabel("Mean state percentage (%)")
-    ax.legend(title="Age group")
+    g = sns.catplot(
+        data=composition,
+        x="Language",
+        y="Percentage",
+        hue="Age",
+        order=languages,
+        hue_order=["18-64", "65+"],
+        kind="bar",
+        errorbar=None,
+        height=6,
+        aspect=1.6,
+    )
 
-    plt.xticks(rotation=20, ha="right")
-    plt.tight_layout()
-    plt.savefig("language_composition.png", dpi=300)
-    plt.close()
+    g.set_axis_labels(
+        "Language spoken at home",
+        "Mean state percentage (%)",
+    )
+    g.set_xticklabels(rotation=20, ha="right")
+    g.legend.set_title("Age group")
+    g.figure.suptitle("Language Composition by Age")
+    g.figure.tight_layout()
+    g.savefig("language_composition.png", dpi=300)
+    plt.close(g.figure)
 
 
 def language_lep(data):
@@ -388,28 +397,32 @@ def plot_hearing_insurance(data):
     """
     for age in ["35-64", "65+"]:
         age_data = data[data["Age"] == age]
-        fig, ax = plt.subplots(figsize=(9, 6))
 
-        for sex in ["Male", "Female"]:
-            group = age_data[age_data["Sex"] == sex]
-            ax.scatter(
-                group["Hearing_Percentage"],
-                group["Coverage_Percentage"],
-                label=sex,
-                alpha=0.75,
-            )
+        g = sns.relplot(
+            data=age_data,
+            x="Hearing_Percentage",
+            y="Coverage_Percentage",
+            hue="Sex",
+            hue_order=["Male", "Female"],
+            kind="scatter",
+            alpha=0.75,
+            height=6,
+            aspect=1.5,
+        )
 
-        ax.set_title(
+        g.set_axis_labels(
+            "Hearing difficulty within sex and age group (%)",
+            "Insurance coverage within age group, both sexes (%)",
+        )
+        g.legend.set_title("Sex of hearing measure")
+        g.figure.suptitle(
             f"Hearing Difficulty and Insurance Coverage: Ages {age}"
         )
-        ax.set_xlabel("Hearing difficulty within sex and age group (%)")
-        ax.set_ylabel("Insurance coverage within age group, both sexes (%)")
-        ax.legend(title="Sex of hearing measure")
+        g.figure.tight_layout()
 
-        fig.tight_layout()
         filename = age.replace("+", "plus")
-        fig.savefig(f"hearing_insurance_{filename}.png", dpi=300)
-        plt.close(fig)
+        g.savefig(f"hearing_insurance_{filename}.png", dpi=300)
+        plt.close(g.figure)
 
 
 def plot_language_insurance(data):
@@ -417,21 +430,26 @@ def plot_language_insurance(data):
     Takes joined language and insurance data and saves a scatter
     plot of state LEP percentages against insurance coverage.
     """
-    fig, ax = plt.subplots(figsize=(9, 6))
-
-    ax.scatter(
-        data["LEP_Percentage"],
-        data["Coverage_Percentage"],
+    g = sns.relplot(
+        data=data,
+        x="LEP_Percentage",
+        y="Coverage_Percentage",
+        kind="scatter",
         alpha=0.75,
+        height=6,
+        aspect=1.5,
     )
 
-    ax.set_title("Language Barriers and Insurance Coverage Across States")
-    ax.set_xlabel("Limited English proficiency, ages 5+ (%)")
-    ax.set_ylabel("Insurance coverage, all ages (%)")
-
-    fig.tight_layout()
-    fig.savefig("language_insurance_scatter.png", dpi=300)
-    plt.close(fig)
+    g.set_axis_labels(
+        "Limited English proficiency, ages 5+ (%)",
+        "Insurance coverage, all ages (%)",
+    )
+    g.figure.suptitle(
+        "Language Barriers and Insurance Coverage Across States"
+    )
+    g.figure.tight_layout()
+    g.savefig("language_insurance_scatter.png", dpi=300)
+    plt.close(g.figure)
 
 
 def plot_language_insurance_distributions(data):
